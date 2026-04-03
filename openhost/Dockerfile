@@ -28,33 +28,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN userdel -r ubuntu 2>/dev/null || true && \
     useradd -m -d /home/devuser -s /bin/bash -u 1000 devuser
 
-# Download the AppImage, extract sculptor_backend + sculpt CLI, clean up.
-# All in one RUN so the ~500MB AppImage + squashfs extraction don't bloat the layer.
-RUN set -eux; \
-    S3_BASE_URL="https://imbue-sculptor-releases.s3.us-west-2.amazonaws.com/slim"; \
-    MACHINE=$(uname -m); \
-    case "$MACHINE" in \
-      x86_64)  ARCH="x64"; MANIFEST_PATH="AppImage/x64/latest-linux.yml" ;; \
-      aarch64) ARCH="arm64"; MANIFEST_PATH="AppImage/arm64/latest-linux-arm64.yml" ;; \
-      *) echo "Unsupported arch: $MACHINE" && exit 1 ;; \
-    esac; \
-    VERSION="$SCULPTOR_VERSION"; \
-    if [ "$VERSION" = "latest" ]; then \
-      VERSION=$(curl -fsSL "$S3_BASE_URL/$MANIFEST_PATH" | grep '^version:' | awk '{print $2}'); \
-      echo "Resolved latest version: $VERSION"; \
-    fi; \
-    FILENAME="Sculptor-${VERSION}.AppImage"; \
-    cd /tmp && \
-    curl -fSL --progress-bar -o "$FILENAME" "$S3_BASE_URL/AppImage/$ARCH/$FILENAME" && \
-    chmod +x "$FILENAME" && \
-    "./$FILENAME" --appimage-extract && \
-    RESOURCES="/tmp/squashfs-root/usr/lib/sculptor/resources" && \
-    mkdir -p /opt/sculptor && \
-    cp -a "$RESOURCES/sculptor_backend" /opt/sculptor/ && \
-    cp -a "$RESOURCES/sculpt" /opt/sculptor/ && \
-    chmod +x /opt/sculptor/sculptor_backend/sculptor_backend /opt/sculptor/sculpt/sculpt && \
-    echo "$VERSION" > /opt/sculptor/.sculptor-version && \
-    rm -rf /tmp/Sculptor-*.AppImage /tmp/squashfs-root
+# Download AppImage, extract sculptor_backend + sculpt CLI to /opt/sculptor.
+COPY openhost/install-sculptor.sh /tmp/install-sculptor.sh
+RUN chmod +x /tmp/install-sculptor.sh && /tmp/install-sculptor.sh "$SCULPTOR_VERSION" && rm /tmp/install-sculptor.sh
 
 # Install Claude Code CLI (not auto-installed in sculptor 0.20.0).
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
@@ -62,29 +38,22 @@ RUN curl -fsSL https://claude.ai/install.sh | bash && \
     chmod +x /usr/local/bin/claude && \
     rm -rf /root/.claude /root/.local/bin/claude
 
-# Setup scripts for secrets and Git
+# Setup scripts, entrypoint, and supervisord config
 COPY openhost/setup/ /app/setup/
 COPY openhost/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh /app/setup/*.sh
-
-# Supervisord config
 COPY openhost/supervisord.conf /etc/supervisor/conf.d/sculptor.conf
 
-# Sculptor serves directly on port 8080 (the externally-exposed port).
 ENV SCULPTOR_PORT=8080
 ENV SCULPTOR_API_PORT=8080
 ENV SCULPTOR_BIND_HOST=0.0.0.0
 
-# Data persistence: OpenHost provides OPENHOST_APP_DATA_DIR and
-# OPENHOST_APP_TEMP_DIR at runtime. We set defaults here so the
-# container also works standalone (e.g. for local testing).
+# Data persistence defaults (OpenHost overrides these at runtime).
 ENV OPENHOST_APP_DATA_DIR=/data/app_data/sculptor
 ENV OPENHOST_APP_TEMP_DIR=/data/app_temp_data/sculptor
 RUN mkdir -p /data/app_data/sculptor /data/app_temp_data/sculptor && \
     chown -R devuser:devuser /data
 
 USER root
-
 EXPOSE 8080
-
 CMD ["/app/entrypoint.sh"]
