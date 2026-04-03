@@ -86,6 +86,8 @@ COPY --from=download /opt/sculptor /opt/sculptor
 
 # Install Claude Code CLI (not auto-installed in sculptor 0.20.0).
 # Install as root first, then copy the binary to a shared location.
+# The CACHEBUST arg forces a rebuild when this layer needs updating.
+ARG CACHEBUST=1
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
     cp /root/.claude/local/claude /usr/local/bin/claude && \
     chmod +x /usr/local/bin/claude && \
