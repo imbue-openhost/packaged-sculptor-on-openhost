@@ -84,6 +84,13 @@ RUN userdel -r ubuntu 2>/dev/null || true && \
 # Copy pre-built binaries from download stage
 COPY --from=download /opt/sculptor /opt/sculptor
 
+# Install Claude Code CLI (not auto-installed in sculptor 0.20.0).
+# Install as root first, then copy the binary to a shared location.
+RUN curl -fsSL https://claude.ai/install.sh | bash && \
+    cp /root/.claude/local/claude /usr/local/bin/claude && \
+    chmod +x /usr/local/bin/claude && \
+    rm -rf /root/.claude
+
 # Setup scripts for secrets and Git
 COPY openhost/setup/ /app/setup/
 COPY openhost/entrypoint.sh /app/entrypoint.sh
