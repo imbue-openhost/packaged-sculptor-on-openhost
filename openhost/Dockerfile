@@ -89,9 +89,9 @@ COPY --from=download /opt/sculptor /opt/sculptor
 # The CACHEBUST arg forces a rebuild when this layer needs updating.
 ARG CACHEBUST=1
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
-    cp /root/.claude/local/claude /usr/local/bin/claude && \
+    cp /root/.local/bin/claude /usr/local/bin/claude && \
     chmod +x /usr/local/bin/claude && \
-    rm -rf /root/.claude
+    rm -rf /root/.claude /root/.local/bin/claude
 
 # Setup scripts for secrets and Git
 COPY openhost/setup/ /app/setup/
