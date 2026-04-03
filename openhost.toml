@@ -24,8 +24,8 @@ app_temp_data = true
 [services.secrets]
 keys = [
     { key = "ANTHROPIC_API_KEY", reason = "Claude Code API access for the AI coding agent", required = true },
-    { key = "GIT_USER_NAME", reason = "Git commit author name", required = true },
-    { key = "GIT_USER_EMAIL", reason = "Git commit author email", required = true },
+    { key = "GIT_USER_NAME", reason = "Git commit author name", required = false },
+    { key = "GIT_USER_EMAIL", reason = "Git commit author email", required = false },
     { key = "GITHUB_ACCESS_TOKEN", reason = "GitHub personal access token for cloning/pushing repos", required = false },
     { key = "GITLAB_ACCESS_TOKEN", reason = "GitLab personal access token for cloning/pushing repos", required = false },
 ]
