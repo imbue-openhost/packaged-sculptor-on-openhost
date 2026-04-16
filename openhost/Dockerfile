@@ -38,6 +38,10 @@ RUN curl -fsSL https://claude.ai/install.sh | bash && \
     chmod +x /usr/local/bin/claude && \
     rm -rf /root/.claude /root/.local/bin/claude
 
+# Test servers for [[ports]] extra-port testing
+COPY servers/ /app/servers/
+COPY scripts/ /app/scripts/
+
 # Setup scripts, entrypoint, and supervisord config
 COPY openhost/setup/ /app/setup/
 COPY openhost/entrypoint.sh /app/entrypoint.sh
@@ -55,5 +59,5 @@ RUN mkdir -p /data/app_data/sculptor /data/app_temp_data/sculptor && \
     chown -R devuser:devuser /data
 
 USER root
-EXPOSE 8080
+EXPOSE 8080 8081 9000
 CMD ["/app/entrypoint.sh"]

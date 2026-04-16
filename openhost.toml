@@ -10,6 +10,16 @@ type = "serverfull"
 image = "openhost/Dockerfile"
 port = 8080
 
+[[ports]]
+label = "static-http"
+container_port = 8081
+host_port = 0  # auto-assign
+
+[[ports]]
+label = "udp-echo"
+container_port = 9000
+host_port = 0  # auto-assign
+
 [routing]
 health_check = "/health"
 
