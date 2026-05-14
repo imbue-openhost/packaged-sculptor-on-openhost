@@ -35,7 +35,7 @@ def main():
         _write_empty()
         return
 
-    url = f"{ROUTER_URL}/_services/secrets/get"
+    url = f"{ROUTER_URL}/api/services/v2/call/secrets/get"
     body = json.dumps({"keys": KEYS}).encode()
     req = urllib.request.Request(
         url,
