@@ -21,11 +21,14 @@ cpu_millicores = 2000
 app_data = true
 app_temp_data = true
 
-[services.secrets]
-keys = [
-    { key = "ANTHROPIC_API_KEY", reason = "Claude Code API access for the AI coding agent", required = true },
-    { key = "GIT_USER_NAME", reason = "Git commit author name", required = false },
-    { key = "GIT_USER_EMAIL", reason = "Git commit author email", required = false },
-    { key = "GITHUB_ACCESS_TOKEN", reason = "GitHub personal access token for cloning/pushing repos", required = false },
-    { key = "GITLAB_ACCESS_TOKEN", reason = "GitLab personal access token for cloning/pushing repos", required = false },
+[[services.v2.consumes]]
+service = "github.com/imbue-openhost/openhost/services/secrets"
+shortname = "secrets"
+version = ">=0.1.0"
+grants = [
+    { key = "ANTHROPIC_API_KEY" },
+    { key = "GIT_USER_NAME" },
+    { key = "GIT_USER_EMAIL" },
+    { key = "GITHUB_ACCESS_TOKEN" },
+    { key = "GITLAB_ACCESS_TOKEN" },
 ]
