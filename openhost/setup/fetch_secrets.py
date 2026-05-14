@@ -7,6 +7,9 @@ Intended to run at container startup before other services. Requires:
 
 Writes /run/openhost-secrets.env with export lines for each fetched secret.
 Exits 0 even if secrets service is unavailable (services may not be deployed yet).
+
+Each key is requested individually so a missing grant on one key doesn't
+prevent fetching the others.
 """
 
 import json
@@ -27,16 +30,9 @@ KEYS = [
 ]
 
 
-def main():
-    if not ROUTER_URL or not APP_TOKEN:
-        print(
-            "fetch_secrets: OPENHOST_ROUTER_URL or OPENHOST_APP_TOKEN not set, skipping"
-        )
-        _write_empty()
-        return
-
+def _fetch_one(key: str) -> str | None:
     url = f"{ROUTER_URL}/api/services/v2/call/secrets/get"
-    body = json.dumps({"keys": KEYS}).encode()
+    body = json.dumps({"keys": [key]}).encode()
     req = urllib.request.Request(
         url,
         data=body,
@@ -45,38 +41,52 @@ def main():
             "Content-Type": "application/json",
         },
     )
-
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
     except urllib.error.HTTPError as e:
-        body = ""
+        body_text = ""
         try:
-            body = e.read().decode("utf-8", errors="replace")
+            body_text = e.read().decode("utf-8", errors="replace")
         except Exception:
             pass
-        print(f"fetch_secrets: HTTP {e.code} from secrets service: {body}")
-        _write_empty()
-        return
+        print(f"fetch_secrets: {key}: HTTP {e.code}: {body_text}")
+        return None
     except (urllib.error.URLError, OSError) as e:
-        print(f"fetch_secrets: could not reach secrets service ({e}), skipping")
-        _write_empty()
-        return
+        print(f"fetch_secrets: {key}: could not reach secrets service ({e})")
+        return None
 
     secrets = data.get("secrets", {})
+    if key in secrets:
+        return secrets[key]
     missing = data.get("missing", [])
+    if key in missing:
+        print(f"fetch_secrets: {key}: granted but not set")
+    else:
+        print(f"fetch_secrets: {key}: not returned by service")
+    return None
 
-    if missing:
-        print(f"fetch_secrets: missing keys (granted but not set): {missing}")
+
+def main():
+    if not ROUTER_URL or not APP_TOKEN:
+        print("fetch_secrets: OPENHOST_ROUTER_URL or OPENHOST_APP_TOKEN not set, skipping")
+        _write_empty()
+        return
+
+    fetched: dict[str, str] = {}
+    for key in KEYS:
+        value = _fetch_one(key)
+        if value is not None:
+            fetched[key] = value
 
     with open(OUTPUT_FILE, "w") as f:
-        for key, value in secrets.items():
+        for key, value in fetched.items():
             # Shell-escape single quotes in values
             escaped = value.replace("'", "'\\''")
             f.write(f"export {key}='{escaped}'\n")
 
     os.chmod(OUTPUT_FILE, 0o600)
-    print(f"fetch_secrets: wrote {len(secrets)} secrets to {OUTPUT_FILE}")
+    print(f"fetch_secrets: wrote {len(fetched)}/{len(KEYS)} secrets to {OUTPUT_FILE}")
 
 
 def _write_empty():
