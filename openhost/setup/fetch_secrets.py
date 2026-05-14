@@ -49,16 +49,25 @@ def main():
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
-    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        print(f"fetch_secrets: HTTP {e.code} from secrets service: {body}")
+        _write_empty()
+        return
+    except (urllib.error.URLError, OSError) as e:
         print(f"fetch_secrets: could not reach secrets service ({e}), skipping")
         _write_empty()
         return
 
     secrets = data.get("secrets", {})
-    denied = data.get("denied", [])
+    missing = data.get("missing", [])
 
-    if denied:
-        print(f"fetch_secrets: denied keys: {denied}")
+    if missing:
+        print(f"fetch_secrets: missing keys (granted but not set): {missing}")
 
     with open(OUTPUT_FILE, "w") as f:
         for key, value in secrets.items():
